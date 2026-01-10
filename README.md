@@ -85,12 +85,13 @@ http://127.0.0.1:8000/.
 ```
 
 You should see the welcome message:
+
 ```bash
 "Welcome to Connectly API. Use /posts/users/ or /posts/posts/"
 ```
 
-#📡 API Endpoints
-##👤 Users
+# 📡 API Endpoints
+## 👤 Users
 ### Retrieve All Users
 #### URL: /posts/users/
 #### Method: GET
