@@ -164,24 +164,27 @@ Verify: Check for a 200 OK or 201 Created status code.
 #### ⚠️ Important: Ensure your POST request URLs end with a trailing slash /. Django's APPEND_SLASH setting may cause 500 errors or redirects if this is missing on POST requests.
 
 # 💡 Project Insights
-Challenges & Solutions
-Author Field Constraint: Creating a post failed initially because the author field is required.
-Solution: Documented the need to create a User first and use their numeric ID in the payload.
-Trailing Slashes: Encountered 500 Internal Server Error on POST requests.
-Solution: Standardized all API calls to include the trailing slash /.
-Root URL 404: The base URL http://127.0.0.1:8000/ initially returned a 404.
-Solution: Added a simple view to handle the root URL and guide users to the correct API paths.
-Learning Points
-Setting up a Django project with Django REST Framework.
-Handling Foreign Key relationships in API payloads (User -> Post).
-Debugging HTTP status codes and validating endpoints with Postman.
+### Challenges & Solutions
+- Author Field Constraint: Creating a post failed initially because the author field is required.
+- Solution: Documented the need to create a User first and use their numeric ID in the payload.
+- Trailing Slashes: Encountered 500 Internal Server Error on POST requests.
+- Solution: Standardized all API calls to include the trailing slash /.
+- Root URL 404: The base URL http://127.0.0.1:8000/ initially returned a 404.
+- Solution: Added a simple view to handle the root URL and guide users to the correct API paths.
+
+### Learning Points
+- Setting up a Django project with Django REST Framework.
+- Handling Foreign Key relationships in API payloads (User -> Post).
+- Debugging HTTP status codes and validating endpoints with Postman.
 
 # 📂 Repository Structure
-manage.py: Django's command-line utility.
-requirements.txt: List of project dependencies.
-connectly_project/: Project configuration (settings, urls, wsgi).
-posts/: The main app containing:
-models.py: Database schemas.
-views.py: API logic.
-urls.py: Endpoint routing.
-serializers.py: Data conversion logic.
+``` text
+├─ manage.py             Django's command-line utility.
+├─ requirements.txt         List of project dependencies.
+├─ connectly_project/       Project configuration (settings, urls, wsgi).
+├─ posts/                   The main app containing:
+    ├─ models.py               Database schemas.
+    ├─ views.py                    API logic.
+    ├─ urls.py                     Endpoint routing.
+    └─ serializers.py              Data conversion logic.
+```
