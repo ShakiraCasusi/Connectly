@@ -1,9 +1,9 @@
 from django.urls import path
-from .views import user_list, user_create, post_list, post_create
+from .views import UserListCreate, PostListCreate, CommentListCreate
+
 
 urlpatterns = [
-    path('users/', user_list),
-    path('users/create/', user_create),
-    path('posts/', post_list),
-    path('posts/create/', post_create),
+    path('users/', UserListCreate.as_view(), name='user-list-create'),
+    path('posts/', PostListCreate.as_view(), name='post-list-create'),
+    path('comments/', CommentListCreate.as_view(), name='comment-list-create'),
 ]
