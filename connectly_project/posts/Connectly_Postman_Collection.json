@@ -1,0 +1,219 @@
+{
+    "info": {
+        "name": "Connectly API Testing",
+        "description": "Postman collection for testing Connectly API with HTTPS, token auth, and RBAC",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Create Superuser",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"username\": \"admin\",\n    \"email\": \"admin@example.com\",\n    \"password\": \"AdminPass123\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "https://127.0.0.1:8000/posts/users/",
+                    "protocol": "https",
+                    "host": [
+                        "127.0.0.1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "posts",
+                        "users"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Get Token (Admin)",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"AdminPass123\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "https://127.0.0.1:8000/posts/token-auth/",
+                    "protocol": "https",
+                    "host": [
+                        "127.0.0.1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "posts",
+                        "token-auth"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Regular User",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Token {{admin_token}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"user@example.com\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "https://127.0.0.1:8000/posts/users/",
+                    "protocol": "https",
+                    "host": [
+                        "127.0.0.1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "posts",
+                        "users"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Create Post",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Token {{admin_token}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"content\": \"This is a test post.\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "https://127.0.0.1:8000/posts/posts/",
+                    "protocol": "https",
+                    "host": [
+                        "127.0.0.1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "posts",
+                        "posts"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "List Posts",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Token {{admin_token}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "https://127.0.0.1:8000/posts/posts/",
+                    "protocol": "https",
+                    "host": [
+                        "127.0.0.1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "posts",
+                        "posts"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Edit Post (Admin)",
+            "request": {
+                "method": "PUT",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Token {{admin_token}}",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"content\": \"Updated post content by admin.\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "https://127.0.0.1:8000/posts/posts/1/",
+                    "protocol": "https",
+                    "host": [
+                        "127.0.0.1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "posts",
+                        "posts",
+                        "1"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Delete Post (Admin)",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Token {{admin_token}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "https://127.0.0.1:8000/posts/posts/1/",
+                    "protocol": "https",
+                    "host": [
+                        "127.0.0.1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "posts",
+                        "posts",
+                        "1"
+                    ]
+                }
+            }
+        }
+    ]
+}
