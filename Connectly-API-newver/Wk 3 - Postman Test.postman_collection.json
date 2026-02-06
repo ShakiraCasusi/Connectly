@@ -1,0 +1,472 @@
+{
+	"info": {
+		"_postman_id": "3870fc6a-44e5-4155-874d-48f12e7eb485",
+		"name": "Postman Test",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "41354246"
+	},
+	"item": [
+		{
+			"name": "GET /posts/users/: Retrieve all users.",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": "http://127.0.0.1:8000/posts/users/"
+			},
+			"response": [
+				{
+					"name": "GET /posts/users/: Retrieve all users.",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": "http://127.0.0.1:8000/posts/users/"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Sun, 09 Feb 2025 09:02:45 GMT"
+						},
+						{
+							"key": "Server",
+							"value": "WSGIServer/0.2 CPython/3.13.1"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept, Cookie"
+						},
+						{
+							"key": "Allow",
+							"value": "GET, POST, HEAD, OPTIONS"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Length",
+							"value": "318"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "Referrer-Policy",
+							"value": "same-origin"
+						},
+						{
+							"key": "Cross-Origin-Opener-Policy",
+							"value": "same-origin"
+						}
+					],
+					"cookie": [],
+					"body": "[\n    {\n        \"id\": 1,\n        \"username\": \"newuser\",\n        \"email\": \"newuser@example.com\",\n        \"created_at\": \"2025-01-22T08:12:53.126887Z\"\n    },\n    {\n        \"id\": 2,\n        \"username\": \"updated_user\",\n        \"email\": \"updated_user@example.com\",\n        \"created_at\": \"2025-01-22T08:33:30.135790Z\"\n    },\n    {\n        \"id\": 5,\n        \"username\": \"testuser\",\n        \"email\": \"test@example.com\",\n        \"created_at\": \"2025-02-09T08:35:09.895364Z\"\n    }\n]"
+				}
+			]
+		},
+		{
+			"name": "POST /posts/users/:",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\": \"testuser\",\r\n    \"email\": \"test@example.com\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://127.0.0.1:8000/posts/users/"
+			},
+			"response": [
+				{
+					"name": "GET /posts/users/: Retrieve all users. Copy",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"testuser\",\r\n    \"email\": \"test@example.com\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://127.0.0.1:8000/posts/users/"
+					},
+					"status": "Created",
+					"code": 201,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Sun, 09 Feb 2025 08:35:09 GMT"
+						},
+						{
+							"key": "Server",
+							"value": "WSGIServer/0.2 CPython/3.13.1"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept, Cookie"
+						},
+						{
+							"key": "Allow",
+							"value": "GET, POST, HEAD, OPTIONS"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Length",
+							"value": "100"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "Referrer-Policy",
+							"value": "same-origin"
+						},
+						{
+							"key": "Cross-Origin-Opener-Policy",
+							"value": "same-origin"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"id\": 5,\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"created_at\": \"2025-02-09T08:35:09.895364Z\"\n}"
+				}
+			]
+		},
+		{
+			"name": "GET /posts/posts/: Retrieve all posts.",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": "http://127.0.0.1:8000/posts/posts/"
+			},
+			"response": [
+				{
+					"name": "GET /posts/users/: Retrieve all users. Copy",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": "http://127.0.0.1:8000/posts/posts/"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Sun, 09 Feb 2025 09:07:06 GMT"
+						},
+						{
+							"key": "Server",
+							"value": "WSGIServer/0.2 CPython/3.13.1"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept, Cookie"
+						},
+						{
+							"key": "Allow",
+							"value": "GET, POST, HEAD, OPTIONS"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Length",
+							"value": "732"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "Referrer-Policy",
+							"value": "same-origin"
+						},
+						{
+							"key": "Cross-Origin-Opener-Policy",
+							"value": "same-origin"
+						}
+					],
+					"cookie": [],
+					"body": "[\n    {\n        \"id\": 1,\n        \"content\": \"This is a test post\",\n        \"author\": 1,\n        \"created_at\": \"2025-01-22T15:58:25.647329Z\",\n        \"comments\": [\n            \"Comment by newuser on Post 1\",\n            \"Comment by newuser on Post 1\",\n            \"Comment by newuser on Post 1\",\n            \"Comment by newuser on Post 1\",\n            \"Comment by newuser on Post 1\",\n            \"Comment by newuser on Post 1\"\n        ]\n    },\n    {\n        \"id\": 2,\n        \"content\": \"Another test post\",\n        \"author\": 1,\n        \"created_at\": \"2025-01-22T16:01:37.600744Z\",\n        \"comments\": []\n    },\n    {\n        \"id\": 3,\n        \"content\": \"This is a test post.\",\n        \"author\": 1,\n        \"created_at\": \"2025-02-09T08:40:30.064972Z\",\n        \"comments\": []\n    },\n    {\n        \"id\": 4,\n        \"content\": \"This is a test post.\",\n        \"author\": 1,\n        \"created_at\": \"2025-02-09T08:56:37.514551Z\",\n        \"comments\": []\n    },\n    {\n        \"id\": 5,\n        \"content\": \"This is a test post.\",\n        \"author\": 1,\n        \"created_at\": \"2025-02-09T09:01:58.302585Z\",\n        \"comments\": []\n    }\n]"
+				}
+			]
+		},
+		{
+			"name": "POST /posts/posts/:",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"content\": \"This is a test post.\",\r\n    \"author\": 1\r\n}\r\n\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://127.0.0.1:8000/posts/posts/"
+			},
+			"response": [
+				{
+					"name": "POST /posts/users/: Copy",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"content\": \"This is a test post.\",\r\n    \"author\": 1\r\n}\r\n\r\n\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://127.0.0.1:8000/posts/posts/"
+					},
+					"status": "Created",
+					"code": 201,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Sun, 09 Feb 2025 09:01:58 GMT"
+						},
+						{
+							"key": "Server",
+							"value": "WSGIServer/0.2 CPython/3.13.1"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept, Cookie"
+						},
+						{
+							"key": "Allow",
+							"value": "GET, POST, HEAD, OPTIONS"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Length",
+							"value": "109"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "Referrer-Policy",
+							"value": "same-origin"
+						},
+						{
+							"key": "Cross-Origin-Opener-Policy",
+							"value": "same-origin"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"id\": 5,\n    \"content\": \"This is a test post.\",\n    \"author\": 1,\n    \"created_at\": \"2025-02-09T09:01:58.302585Z\",\n    \"comments\": []\n}"
+				}
+			]
+		},
+		{
+			"name": "GET /posts/comments/: Retrieve all comments.",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": "http://127.0.0.1:8000/posts/comments/"
+			},
+			"response": [
+				{
+					"name": "GET /posts/posts/: Retrieve all posts. Copy",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": "http://127.0.0.1:8000/posts/comments/"
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Sun, 09 Feb 2025 08:42:05 GMT"
+						},
+						{
+							"key": "Server",
+							"value": "WSGIServer/0.2 CPython/3.13.1"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept, Cookie"
+						},
+						{
+							"key": "Allow",
+							"value": "GET, POST, HEAD, OPTIONS"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Length",
+							"value": "2"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "Referrer-Policy",
+							"value": "same-origin"
+						},
+						{
+							"key": "Cross-Origin-Opener-Policy",
+							"value": "same-origin"
+						}
+					],
+					"cookie": [],
+					"body": "[]"
+				}
+			]
+		},
+		{
+			"name": "POST /posts/comments/",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"text\": \"This is a comment.\",\r\n    \"author\": 1,\r\n    \"post\": 1\r\n}\r\n\r\n\r\n\r\n\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "http://127.0.0.1:8000/posts/comments/"
+			},
+			"response": [
+				{
+					"name": "POST /posts/posts/: Copy",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"text\": \"This is a comment.\",\r\n    \"author\": 1,\r\n    \"post\": 1\r\n}\r\n\r\n\r\n\r\n\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "http://127.0.0.1:8000/posts/comments/"
+					},
+					"status": "Created",
+					"code": 201,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Date",
+							"value": "Sun, 09 Feb 2025 09:06:41 GMT"
+						},
+						{
+							"key": "Server",
+							"value": "WSGIServer/0.2 CPython/3.13.1"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Vary",
+							"value": "Accept, Cookie"
+						},
+						{
+							"key": "Allow",
+							"value": "GET, POST, HEAD, OPTIONS"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Length",
+							"value": "99"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "Referrer-Policy",
+							"value": "same-origin"
+						},
+						{
+							"key": "Cross-Origin-Opener-Policy",
+							"value": "same-origin"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"id\": 6,\n    \"text\": \"This is a comment.\",\n    \"author\": 1,\n    \"post\": 1,\n    \"created_at\": \"2025-02-09T09:06:41.435585Z\"\n}"
+				}
+			]
+		}
+	]
+}
