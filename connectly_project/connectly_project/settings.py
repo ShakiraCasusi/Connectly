@@ -78,6 +78,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Strong password hashing
 # Remove Argon2 if not installed yet to avoid errors
 PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
@@ -96,12 +97,12 @@ STATIC_URL = 'static/'
 # -------------------------
 
 # HTTPS enforcement is disabled for local testing to avoid SSL errors
-# SECURE_SSL_REDIRECT = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
-# SECURE_HSTS_SECONDS = 31536000
-# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# SECURE_HSTS_PRELOAD = True
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # Django REST Framework default settings
 REST_FRAMEWORK = {

@@ -13,6 +13,7 @@ urlpatterns = [
     # Comments
     path('comments/', CommentListCreate.as_view(), name='comment-list-create'),
 
-    # Token auth
+    # Token auth at root
     path('token-auth/', obtain_auth_token, name='token-auth'),
+    
 ]
