@@ -1,191 +1,431 @@
-# Connectly API
+# Connectly API Documentation
 
-**Connectly API** is a backend service built with Django and the Django REST Framework (DRF). It provides a RESTful interface for managing **Users** and **Posts**, allowing for the creation and retrieval of data via JSON endpoints.
-
-This project serves as a foundational implementation of CRUD operations, tested and verified using Postman.
+**Connectly API** is a backend service built with Django and Django REST Framework. The API exposes REST endpoints for **Users**, **Posts**, and **Comments**. All endpoints use JSON. Token authentication protects resources. Object-level permissions restrict post updates and deletes.
 
 ---
 
-## 🚀 Features
+## 1. Overview
 
-- **User Management:** Create and retrieve user profiles.
-- **Post Management:** Create and retrieve text-based posts linked to specific authors.
-- **RESTful Architecture:** Clean URL structure and standard HTTP methods.
-- **JSON Support:** Fully supports JSON payloads for requests and responses.
-- **Scalable Structure:** Built on Django, ready for extensions like authentication and permissions.
+Connectly provides a RESTful backend for basic social features.
+
+**Primary scope**:
+- Users
+- Posts
+- Comments
+
+**Key goals**:
+- Clean REST design
+- Token-based authentication
+- Author-only access control
+- Clear separation of concerns
+- Demonstration of design patterns
+
+The API is tested using Postman.
 
 ---
 
-## 🛠️ Setup Instructions
+## 2. Features
 
-Follow these steps to get the project running on your local machine.
+- User creation and listing
+- Post CRUD operations
+- Comment creation and listing
+- Token authentication using DRF
+- Author-only permissions for post updates and deletes
+- Structured logging
+- Factory and Singleton patterns
 
-### 1. Clone the Repository
+---
+
+## 3. System Architecture
+
+**Core framework**:
+- Django
+- Django REST Framework
+
+**Project structure**:
+- connectly_project/  
+  Project settings and root URLs
+
+- posts/  
+  Main application
+
+**Key files**:
+- posts/models.py  
+  User, Post, Comment models
+
+- posts/serializers.py  
+  API input and output validation
+
+- posts/views.py  
+  API views with auth and permissions
+
+- posts/permissions.py  
+  Custom access rules
+
+- factories/post_factory.py  
+  Factory pattern for post creation
+
+- singletons/logger_singleton.py  
+  Shared logger instance
+
+---
+
+## 4. Data Model
+
+**User:**
+- username (unique)
+- email (unique)
+- created_at
+
+**Post:**
+- content
+- author (foreign key to User)
+- created_at
+
+**Comment:**
+- text
+- author (foreign key to User)
+- post (foreign key to Post)
+- created_at
+
+---
+
+## 5. Setup Instructions
+
+**Clone the repository:**
 
 ```bash
-git clone <your-repo-link>
+git clone <repository-url>
 cd connectly_project
 ```
 
-### 2. Create and Activate Virtual Environment
-It is recommended to run this project in an isolated environment.
+**Create virtual environment:**
 
-Windows:
+**Windows:**
 
 ```bash
 python -m venv env
 env\Scripts\activate
 ```
 
-Mac/Linux:
+**Mac or Linux:**
+
 ```bash
 python3 -m venv env
 source env/bin/activate
 ```
 
+**Install dependencies:**
 
-### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Apply Database Migrations
-Initialize the SQLite database schema:
+**Apply migrations:**
 
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-### 5. Create Default Data (Optional)
-To test the Post creation immediately, you need an existing User (author). You can create one via the Django shell:
+**Run development server:**
 
-```bash
-python manage.py shell
-```
-
-Inside the shell, run:
-```bash
-python
-from posts.models import User
-```
-
-# Create a default user with ID 1 (or next available ID)
-User.objects.get_or_create(username='defaultuser', email='defaultuser@example.com')
-exit()
-
-### 6. Run Development Server
 ```bash
 python manage.py runserver
 ```
 
-Open your browser to
-```bash
-http://127.0.0.1:8000/.
+**Server runs at:**
+
+```text
+http://127.0.0.1:8000/
 ```
 
-You should see the welcome message:
+---
 
-```bash
-"Welcome to Connectly API. Use /posts/users/ or /posts/posts/"
+## 6. API Reference
+
+**Base path:**
+
+```text
+/posts/
 ```
 
-# 📡 API Endpoints
-## 👤 Users
-### Retrieve All Users
-#### URL: /posts/users/
-#### Method: GET
-#### Response:
-```bash
-json
-[
-    {"id": 1, "username": "defaultuser", "email": "defaultuser@example.com"},
-    {"id": 2, "username": "newuser", "email": "newuser@example.com"}
-]
-```
+### 6.1 Users
 
-### Create a User
-#### URL: /posts/users/create/
-#### Method: POST
-#### Body (JSON):
-```bash
-json
+| Operation   | Method | URL           |
+| ----------- | ------ | ------------- |
+| List users  | GET    | /posts/users/ |
+| Create user | POST   | /posts/users/ |
+
+**Create user payload:**
+
+```json
 {
-    "username": "john_doe",
-    "email": "john@example.com"
+  "username": "jane_doe",
+  "email": "jane@example.com"
 }
 ```
 
-## 📝 Posts
-### Retrieve All Posts
-#### URL: /posts/posts/
-#### Method: GET
-#### Response:
+---
 
-```bash
-json
- Show full code block 
-[
-    {
-        "id": 1, 
-        "title": "First Post", 
-        "content": "Hello World", 
-        "author": 1
-    }
-]
-```
+### 6.2 Posts
 
-### Create a Post
-#### URL: /posts/posts/create/
-#### Method: POST
-#### Body (JSON):
+| Operation     | Method | URL                | Access |
+| ------------- | ------ | ------------------ | ------ |
+| List posts    | GET    | /posts/posts/      | Auth   |
+| Create post   | POST   | /posts/posts/      | Auth   |
+| Retrieve post | GET    | /posts/posts/<id>/ | Author |
+| Update post   | PUT    | /posts/posts/<id>/ | Author |
+| Delete post   | DELETE | /posts/posts/<id>/ | Author |
 
-```bash
-json
+**Create post payload:**
+
+```json
 {
-    "title": "My New Post",
-    "content": "This is the content of the post.",
-    "author": 1
+  "post_type": "text",
+  "content": "Hello world",
+  "metadata": {}
 }
 ```
 
-#### Note: The author field must be the Integer ID of an existing user.
+**Post response:**
 
-# 🧪 Testing with Postman
-Open Postman and create a new request.
-Select Method: Choose GET or POST.
-Enter URL: e.g., http://127.0.0.1:8000/posts/posts/create/
-Configure POST Body:
-Go to the Body tab.
-Select raw.
-Select JSON from the dropdown menu.
-Paste the JSON payload (see examples above).
-Send: Click the "Send" button.
-Verify: Check for a 200 OK or 201 Created status code.
-#### ⚠️ Important: Ensure your POST request URLs end with a trailing slash /. Django's APPEND_SLASH setting may cause 500 errors or redirects if this is missing on POST requests.
-
-# 💡 Project Insights
-### Challenges & Solutions
-- Author Field Constraint: Creating a post failed initially because the author field is required.
-- Solution: Documented the need to create a User first and use their numeric ID in the payload.
-- Trailing Slashes: Encountered 500 Internal Server Error on POST requests.
-- Solution: Standardized all API calls to include the trailing slash /.
-- Root URL 404: The base URL http://127.0.0.1:8000/ initially returned a 404.
-- Solution: Added a simple view to handle the root URL and guide users to the correct API paths.
-
-### Learning Points
-- Setting up a Django project with Django REST Framework.
-- Handling Foreign Key relationships in API payloads (User -> Post).
-- Debugging HTTP status codes and validating endpoints with Postman.
-
-# 📂 Repository Structure
-``` text
-├─ manage.py             Django's command-line utility.
-├─ requirements.txt         List of project dependencies.
-├─ connectly_project/       Project configuration (settings, urls, wsgi).
-├─ posts/                   The main app containing:
-    ├─ models.py               Database schemas.
-    ├─ views.py                    API logic.
-    ├─ urls.py                     Endpoint routing.
-    └─ serializers.py              Data conversion logic.
+```json
+{
+  "id": 1,
+  "content": "Hello world",
+  "author": 1,
+  "created_at": "2024-01-01T12:00:00Z",
+  "comments": []
+}
 ```
+
+---
+
+### 6.3 Comments
+
+| Operation      | Method | URL              |
+| -------------- | ------ | ---------------- |
+| List comments  | GET    | /posts/comments/ |
+| Create comment | POST   | /posts/comments/ |
+
+**Create comment payload:**
+
+```json
+{
+  "text": "Nice post!",
+  "post": 1
+}
+```
+
+---
+
+### 6.4 Authentication
+
+| Operation    | Method | URL                |
+| ------------ | ------ | ------------------ |
+| Obtain token | POST   | /posts/token-auth/ |
+
+**Authorization header:**
+
+```text
+Authorization: Token <token>
+```
+
+---
+
+## 7. Security and Validation
+
+**Authentication:**
+
+* DRF TokenAuthentication
+
+**Authorization:**
+
+* IsAuthenticated on all endpoints
+* IsPostAuthor for post update and delete
+
+**Validation:**
+
+* Serializers validate request data
+* PostFactory enforces post-type rules
+
+---
+
+## 8. Design Patterns
+
+**Factory Pattern:**
+
+* PostFactory.create_post handles post creation logic and validation
+
+**Singleton Pattern:**
+
+* LoggerSingleton ensures one shared logger instance
+
+---
+
+## 9. Diagrams
+
+### 9.1 Access Control Diagram
+```mermaid
+flowchart LR
+  subgraph Roles
+    User[Authenticated User]
+    Author[Post Author]
+    Admin[Admin Group Member]
+  end
+
+  subgraph Controls
+    IsAuth[IsAuthenticated]
+    IsPostAuthor[IsPostAuthor]
+    IsAdmin[IsAdmin]
+  end
+
+  subgraph Resources
+    Users[Users API]
+    Posts[Posts API]
+    Comments[Comments API]
+    PostRead[Read Post]
+    PostWrite[Update/Delete Post]
+    AdminActions[Admin-Only Actions]
+  end
+
+  User --> IsAuth
+  Author --> IsPostAuthor
+  Admin --> IsAdmin
+
+  IsAuth --> Users
+  IsAuth --> Posts
+  IsAuth --> Comments
+  IsAuth --> PostRead
+  IsPostAuthor --> PostWrite
+  IsAdmin --> AdminActions
+```
+
+### 9.2 Authentication Flow Diagram
+```mermaid
+sequenceDiagram
+  participant Client
+  participant TokenEndpoint as Token Auth Endpoint
+  participant API as Protected API View
+  participant Auth as TokenAuthentication
+  participant Perms as Permissions
+
+  Client->>TokenEndpoint: POST /posts/token-auth/ (credentials)
+  TokenEndpoint-->>Client: 200 OK (token)
+
+  Client->>API: Request with Authorization: Token <token>
+  API->>Auth: Validate token
+  Auth-->>API: user
+  API->>Perms: Check IsAuthenticated / IsPostAuthor
+  Perms-->>API: allow/deny
+  API-->>Client: 200 OK (resource) or 403 Forbidden
+```
+
+
+### 9.3 System Architecture Diagram
+```mermaid
+flowchart TB
+  Client[Client / Postman]
+  API[Django + DRF API]
+  Auth[TokenAuthentication]
+  Perms[Custom Permissions]
+  Ser[Serializers]
+  Models[(Models)]
+  Logger[LoggerSingleton]
+  Factory[PostFactory]
+  DB[(SQLite DB)]
+
+  Client --> API
+  API --> Auth
+  API --> Perms
+  API --> Ser
+  Ser --> Models
+  Models --> DB
+  API --> Logger
+  API --> Factory
+  Factory --> Models
+```
+
+### 9.4 CRUD Diagram
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant V as Posts API View
+  participant S as Serializer
+  participant M as Model
+
+  C->>V: Create (POST /posts/posts/)
+  V->>S: Validate input
+  S-->>V: Validated data
+  V->>M: Create record
+  M-->>V: Created
+  V-->>C: 201 Created
+
+  C->>V: Read List (GET /posts/posts/)
+  V->>M: Query list
+  M-->>V: Results
+  V-->>C: 200 OK
+
+  C->>V: Read Detail (GET /posts/posts/{id}/)
+  V->>M: Query record
+  M-->>V: Record
+  V-->>C: 200 OK
+
+  C->>V: Update (PUT /posts/posts/{id}/)
+  V->>S: Validate input
+  S-->>V: Validated data
+  V->>M: Update record
+  M-->>V: Updated
+  V-->>C: 200 OK
+
+  C->>V: Delete (DELETE /posts/posts/{id}/)
+  V->>M: Delete record
+  M-->>V: Deleted
+  V-->>C: 204 No Content
+```
+
+---
+
+## 10. Troubleshooting
+
+**401 Unauthorized:**
+
+* Missing or invalid token
+
+**403 Forbidden:**
+
+* You are not the post author
+
+**400 Bad Request:**
+
+* PostFactory validation failed
+* post_type or metadata mismatch
+
+**Token issues:**
+
+* Check token-auth endpoint setup
+* Confirm correct user model
+
+---
+
+## 11. Example Request
+
+```bash
+curl -X POST http://127.0.0.1:8000/posts/posts/ \
+  -H "Authorization: Token <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"post_type":"text","content":"Hello","metadata":{}}'
+```
+
+---
+
+## 12. Contributors
+
+| Name                  | Role        |
+| --------------------- | ----------- |
+| Camille Rose          | Contributor |
+| Shakira Angela Casusi | Contributor/Documenter |
+
+Roles inferred from commit history in repository.
+
