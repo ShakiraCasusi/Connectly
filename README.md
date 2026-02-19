@@ -29,6 +29,8 @@ The API is tested using Postman.
 - User creation and listing
 - Post CRUD operations
 - Comment creation and listing
+- Post likes (per-user, per-post)
+- Post-scoped comments with pagination
 - Token authentication using DRF
 - Author-only permissions for post updates and deletes
 - Structured logging
@@ -87,6 +89,12 @@ The API is tested using Postman.
 - author (foreign key to User)
 - post (foreign key to Post)
 - created_at
+
+**Like:**
+- user (foreign key to User)
+- post (foreign key to Post)
+- created_at
+- unique per (user, post)
 
 ---
 
@@ -196,7 +204,9 @@ http://127.0.0.1:8000/
   "content": "Hello world",
   "author": 1,
   "created_at": "2024-01-01T12:00:00Z",
-  "comments": []
+  "comments": [],
+  "like_count": 0,
+  "comment_count": 0
 }
 ```
 
@@ -215,6 +225,91 @@ http://127.0.0.1:8000/
 {
   "text": "Nice post!",
   "post": 1
+}
+```
+
+---
+
+### 6.4 Likes + Post-Scoped Comments
+
+These endpoints attach likes/comments to a specific post and return consistent error payloads:
+
+```json
+{ "error": "message" }
+```
+
+| Operation              | Method | URL                              |
+| ---------------------- | ------ | -------------------------------- |
+| Like a post            | POST   | /posts/posts/<id>/like/          |
+| Comment on a post      | POST   | /posts/posts/<id>/comment/       |
+| List comments on a post| GET    | /posts/posts/<id>/comments/      |
+
+**Like a post**
+
+- **Request**: `POST /posts/posts/1/like/`
+- **Success (201)** example:
+
+```json
+{
+  "id": 1,
+  "user": 1,
+  "post": 1,
+  "created_at": "2026-02-18T18:23:00Z"
+}
+```
+
+- **Duplicate (400)**:
+
+```json
+{ "error": "Post already liked" }
+```
+
+- **Missing post (404)**:
+
+```json
+{ "error": "Post not found" }
+```
+
+**Comment on a post**
+
+- **Request**: `POST /posts/posts/1/comment/`
+
+```json
+{ "content": "Nice post!" }
+```
+
+- **Success (201)** example:
+
+```json
+{
+  "id": 1,
+  "content": "Nice post!",
+  "author": 1,
+  "post": 1,
+  "created_at": "2026-02-18T18:25:00Z"
+}
+```
+
+- **Empty content (400)**:
+
+```json
+{ "error": "Content cannot be empty" }
+```
+
+**Get comments on a post (newest first)**
+
+- **Request**: `GET /posts/posts/1/comments/?page=1&page_size=5`
+- **Default page_size**: 10
+- **Response (200)** uses DRF pagination:
+
+```json
+{
+  "count": 12,
+  "next": "http://127.0.0.1:8000/posts/posts/1/comments/?page=2&page_size=5",
+  "previous": null,
+  "results": [
+    { "id": 12, "content": "Latest", "author": 1, "post": 1, "created_at": "..." }
+  ]
 }
 ```
 
@@ -385,6 +480,68 @@ sequenceDiagram
   V-->>C: 204 No Content
 ```
 
+### 9.5 Data Relationship Diagram (Extended)
+
+```mermaid
+erDiagram
+  USER ||--o{ POST : authors
+  USER ||--o{ COMMENT : writes
+  POST ||--o{ COMMENT : has
+
+  USER ||--o{ LIKE : creates
+  POST ||--o{ LIKE : receives
+
+  USER {
+    int id
+    string username
+    string email
+    datetime created_at
+  }
+
+  POST {
+    int id
+    text content
+    datetime created_at
+  }
+
+  COMMENT {
+    int id
+    text text
+    datetime created_at
+  }
+
+  LIKE {
+    int id
+    datetime created_at
+  }
+```
+
+### 9.6 Like + Post-Scoped Comment Flows
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant V as Posts API View
+  participant M as Model
+
+  C->>V: Like (POST /posts/posts/{id}/like/)
+  V->>M: Check existing Like(user, post)
+  alt not liked
+    V->>M: Create Like
+    V-->>C: 201 Created
+  else already liked
+    V-->>C: 400 {error: "Post already liked"}
+  end
+
+  C->>V: Comment (POST /posts/posts/{id}/comment/)
+  V->>M: Validate content + create Comment
+  V-->>C: 201 Created
+
+  C->>V: List Comments (GET /posts/posts/{id}/comments/)
+  V->>M: Query comments newest-first + paginate
+  V-->>C: 200 Paginated results
+```
+
 ---
 
 ## 10. Troubleshooting
@@ -419,6 +576,19 @@ curl -X POST http://127.0.0.1:8000/posts/posts/ \
 ```
 
 ---
+
+## 13. Manual Testing Checklist (Likes + Comments)
+
+- Create at least one Django auth user (via admin or existing setup) and obtain a token from `/posts/token-auth/`
+- Ensure at least one Post exists (via admin or `POST /posts/posts/`)
+- Like a post: `POST /posts/posts/1/like/` → **201**
+- Like twice: same request → **400** `{ "error": "Post already liked" }`
+- Like missing post: `POST /posts/posts/999/like/` → **404** `{ "error": "Post not found" }`
+- Comment on a post: `POST /posts/posts/1/comment/` with `{ "content": "Nice post!" }` → **201**
+- Empty comment: `{ "content": "" }` → **400** `{ "error": "Content cannot be empty" }`
+- Comment missing post: `POST /posts/posts/999/comment/` → **404** `{ "error": "Post not found" }`
+- Fetch comments: `GET /posts/posts/1/comments/` → **200** (newest first)
+- Pagination: `GET /posts/posts/1/comments/?page=1&page_size=5` → **200** with `count/next/previous/results`
 
 ## 12. Contributors
 

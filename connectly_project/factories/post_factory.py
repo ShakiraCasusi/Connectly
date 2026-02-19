@@ -1,21 +1,26 @@
 from posts.models import Post
 
+
 class PostFactory:
+    """
+    Factory used by the Posts API to centralize validation/creation.
+
+    Note: The current Post model in this project is a simple text post:
+      - content
+      - author
+      - created_at
+
+    Some earlier iterations of this project referenced post_type/metadata/title.
+    To maintain backward compatibility with existing view code and docs, this
+    factory accepts those arguments but gracefully falls back to creating a
+    basic text post instance (unsaved) when those fields do not exist.
+    """
+
     @staticmethod
-    def create_post(post_type, title, content='', metadata=None):
-        if post_type not in dict(Post.POST_TYPES):
-            raise ValueError("Invalid post type")
-        
-        # Validate type-specific requirements
-        if post_type == 'image' and 'file_size' not in metadata:
-            raise ValueError("Image posts require 'file_size' in metadata")
-        
-        if post_type == 'video' and 'duration' not in metadata:
-            raise ValueError("Video posts require 'duration' in metadata")
-        
-        return Post.objects.create(
-            title=title,
-            content=content,
-            post_type=post_type,
-            metadata=metadata
-        )
+    def create_post(post_type=None, title="", content="", metadata=None):
+        # Prefer "content" if explicitly passed; otherwise treat "title" as the content.
+        post_content = content if content not in (None, "") else (title or "")
+
+        # Create an UNSAVED instance so the view can attach author before saving.
+        # (author is a required FK in the current schema)
+        return Post(content=post_content)
