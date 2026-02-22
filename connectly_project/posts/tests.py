@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 
 from .models import User as DomainUser, Post, Comment, Like
 
@@ -9,7 +10,7 @@ class LikesAndCommentsAPITests(APITestCase):
     def setUp(self):
         auth_user_model = get_user_model()
 
-        # Auth user (used by TokenAuthentication)
+        # Auth user for TokenAuthentication
         self.auth_user = auth_user_model.objects.create_user(
             username="alice",
             email="alice@example.com",
@@ -17,7 +18,7 @@ class LikesAndCommentsAPITests(APITestCase):
         )
         self.token, _ = Token.objects.get_or_create(user=self.auth_user)
 
-        # Matching domain user (used by Post/Comment/Like relations)
+        # Domain user for Post/Comment/Like relations
         self.domain_user = DomainUser.objects.create(
             username="alice",
             email="alice@example.com",
@@ -89,10 +90,70 @@ class LikesAndCommentsAPITests(APITestCase):
         self.assertEqual(res.data["results"][0]["content"], "Second")
         self.assertEqual(res.data["results"][1]["content"], "First")
 
-        # pagination page_size override
+        # Can also specify page_size in the URL
         for i in range(12):
             Comment.objects.create(post=self.post, author=self.domain_user, text=f"C{i}")
 
         res2 = self.client.get(f"/posts/posts/{self.post.id}/comments/?page=1&page_size=5")
         self.assertEqual(res2.status_code, 200)
         self.assertEqual(len(res2.data["results"]), 5)
+
+
+class GoogleLoginAPITests(APITestCase):
+    def setUp(self):
+        self.auth_user_model = get_user_model()
+
+    @patch('posts.views.id_token.verify_oauth2_token')
+    def test_google_login_success_new_user(self, mock_verify_token):
+        """Test successful login and user creation for a new Google user."""
+        # Simulate a valid Google token verification
+        mock_verify_token.return_value = {
+            'email': 'new.user@gmail.com',
+            'name': 'New User',
+        }
+
+        res = self.client.post("/posts/auth/google/", data={"id_token": "fake-token"}, format="json")
+
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("token", res.data)
+        self.assertEqual(res.data["email"], "new.user@gmail.com")
+
+        # Verify users were created in both tables
+        self.assertTrue(self.auth_user_model.objects.filter(email="new.user@gmail.com").exists())
+        self.assertTrue(DomainUser.objects.filter(email="new.user@gmail.com").exists())
+
+    @patch('posts.views.id_token.verify_oauth2_token')
+    def test_google_login_success_existing_user(self, mock_verify_token):
+        """Test successful login for an existing user."""
+        # Pre-create the user
+        user = self.auth_user_model.objects.create_user(username="jane", email="jane.doe@gmail.com", password="pw")
+        DomainUser.objects.create(username="jane", email="jane.doe@gmail.com")
+
+        mock_verify_token.return_value = {'email': 'jane.doe@gmail.com'}
+
+        res = self.client.post("/posts/auth/google/", data={"id_token": "fake-token"}, format="json")
+
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("token", res.data)
+        self.assertEqual(res.data["email"], "jane.doe@gmail.com")
+
+        # Verify no new user was created
+        self.assertEqual(self.auth_user_model.objects.count(), 1)
+        self.assertEqual(DomainUser.objects.count(), 1)
+
+    @patch('posts.views.id_token.verify_oauth2_token')
+    def test_google_login_invalid_token(self, mock_verify_token):
+        """Test login failure with an invalid token."""
+        mock_verify_token.side_effect = ValueError("Token is invalid")
+
+        res = self.client.post("/posts/auth/google/", data={"id_token": "invalid-token"}, format="json")
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.data, {"error": "Token verification failed: Token is invalid"})
+
+    def test_google_login_missing_token(self):
+        """Test login failure when id_token is not provided."""
+        res = self.client.post("/posts/auth/google/", data={}, format="json")
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.data, {"error": "Missing id_token"})

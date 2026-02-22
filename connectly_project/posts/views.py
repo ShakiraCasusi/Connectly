@@ -1,3 +1,10 @@
+import uuid
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from django.conf import settings
+from django.contrib.auth.models import User as AuthUser
+from django.utils.crypto import get_random_string
+from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -114,7 +121,7 @@ class UserListCreate(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        # POST doesn't require authentication (public registration)
+        # POST doesn't require auth—public registration lang ito
         logger.info(f"User creation attempted (username: {request.data.get('username', 'unknown')})")
 
         serializer = UserCreateSerializer(data=request.data)
@@ -124,7 +131,7 @@ class UserListCreate(APIView):
             return Response(UserSerializer(domain_user).data, status=status.HTTP_201_CREATED)
         
         logger.warning(f"User creation failed: {serializer.errors}")
-        # Normalize to the project's consistent {"error": "..."} format where possible
+        # Try to normalize sa consistent {"error": "..."} format kung possible
         if isinstance(serializer.errors, dict) and "error" in serializer.errors:
             err = serializer.errors["error"]
             if isinstance(err, list) and err:
@@ -141,7 +148,7 @@ class PostListCreate(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # DRF's IsAuthenticated ensures user is authenticated at this point
+        # User is guaranteed authenticated here dahil DRF's IsAuthenticated na nag-check
         username = getattr(request.user, 'username', 'unknown')
         logger.info(f"Posts retrieved by: {username}")
         posts = Post.objects.all()
@@ -149,8 +156,7 @@ class PostListCreate(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        # DRF's IsAuthenticated permission already handles auth check
-        # This method only runs if user is authenticated
+        # Auth check is already done by IsAuthenticated, so safe na mag-proceed dito
         data = request.data
         username = getattr(request.user, 'username', 'unknown')
         logger.info(f"Post creation attempted by: {username}")
@@ -289,7 +295,7 @@ class PostCommentCreate(APIView):
 
         serializer = PostCommentCreateSerializer(data=request.data)
         if not serializer.is_valid():
-            # Enforce consistent error response format
+            # Make sure response format ay consistent with project standards
             content_errs = serializer.errors.get("content") if isinstance(serializer.errors, dict) else None
             if isinstance(content_errs, list) and content_errs:
                 return _error(str(content_errs[0]), status.HTTP_400_BAD_REQUEST)
@@ -322,3 +328,63 @@ class PostCommentList(APIView):
         page = paginator.paginate_queryset(qs, request, view=self)
         serializer = PostCommentSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
+
+# Google OAuth
+
+class GoogleLogin(APIView):
+    """
+    Exchanges a Google ID token for a Connectly API token.
+    Creates a new user if one with the verified email does not exist.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        google_token = request.data.get("id_token")
+        if not google_token:
+            return _error("Missing id_token", status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Verify with Google kung legit ang token
+            id_info = id_token.verify_oauth2_token(
+                google_token, 
+                google_requests.Request(), 
+                settings.GOOGLE_CLIENT_ID
+            )
+
+            email = id_info.get("email")
+            if not email:
+                return _error("Invalid token: Email not found", status.HTTP_400_BAD_REQUEST)
+
+            # 1. Get or create the Django auth user
+            try:
+                user = AuthUser.objects.get(email=email)
+            except AuthUser.DoesNotExist:
+                # Username from email + random hex para hindi mag-duplicate
+                base_username = email.split("@")[0]
+                username = f"{base_username}_{uuid.uuid4().hex[:6]}"
+                user = AuthUser.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=get_random_string(length=32)
+                )
+
+            # 2. Make sure ang domain user (posts.User) exists din
+            domain_user, _ = User.objects.get_or_create(
+                username=user.username,
+                defaults={'email': user.email}
+            )
+
+            # 3. Get or create the API token
+            token, _ = Token.objects.get_or_create(user=user)
+
+            return Response({
+                "token": token.key,
+                "user_id": domain_user.id,
+                "username": domain_user.username,
+                "email": domain_user.email
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            logger.warning(f"Google auth failed: {str(e)}")
+            return _error(f"Token verification failed: {str(e)}", status.HTTP_400_BAD_REQUEST)

@@ -18,9 +18,9 @@ class PostFactory:
 
     @staticmethod
     def create_post(post_type=None, title="", content="", metadata=None):
-        # Prefer "content" if explicitly passed; otherwise treat "title" as the content.
+        # If content is provided, use that; if not, use title as the post content
         post_content = content if content not in (None, "") else (title or "")
 
-        # Create an UNSAVED instance so the view can attach author before saving.
-        # (author is a required FK in the current schema)
+        # Create the post but don't save yet so the view can add author first
+        # Author is required sa Post model kaya need nating mag-assign bago ma-save
         return Post(content=post_content)
