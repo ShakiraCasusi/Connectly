@@ -4,6 +4,7 @@ from .views import (
     PostListCreate,
     PostDetail,
     CommentListCreate,
+    FeedView,
     PostLike,
     PostCommentCreate,
     PostCommentList,
@@ -15,6 +16,9 @@ from rest_framework.authtoken.views import obtain_auth_token
 urlpatterns = [
     # User endpoints
     path('users/', UserListCreate.as_view(), name='user-list-create'),
+
+    # Personalized News Feed
+    path('feed/', FeedView.as_view(), name='user-feed'),
 
     # Post endpoints
     path('posts/', PostListCreate.as_view(), name='post-list-create'),

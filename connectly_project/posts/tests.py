@@ -3,7 +3,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 from unittest.mock import patch
 
-from .models import User as DomainUser, Post, Comment, Like
+from .models import User as DomainUser, Post, Comment, Like, Follow
 
 
 class LikesAndCommentsAPITests(APITestCase):
@@ -157,3 +157,61 @@ class GoogleLoginAPITests(APITestCase):
 
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.data, {"error": "Missing id_token"})
+
+
+class FeedAPITests(APITestCase):
+    def setUp(self):
+        # #squad up
+        auth_user_model = get_user_model()
+
+        # User 1: The one making the request
+        self.user1_auth = auth_user_model.objects.create_user(username="user1", password="pw")
+        self.user1_domain = DomainUser.objects.create(username="user1")
+        self.token1, _ = Token.objects.get_or_create(user=self.user1_auth)
+
+        # User 2: The user that user1 will follow
+        self.user2_auth = auth_user_model.objects.create_user(username="user2", password="pw")
+        self.user2_domain = DomainUser.objects.create(username="user2")
+
+        # User 3: A random user that user1 does not follow
+        self.user3_auth = auth_user_model.objects.create_user(username="user3", password="pw")
+        self.user3_domain = DomainUser.objects.create(username="user3")
+
+        # Create some posts
+        self.post_by_user1 = Post.objects.create(author=self.user1_domain, content="My own post")
+        self.post_by_user2 = Post.objects.create(author=self.user2_domain, content="A post from someone I follow")
+        self.post_by_user3 = Post.objects.create(author=self.user3_domain, content="A post from a stranger")
+
+        # User1 follows User2
+        Follow.objects.create(follower=self.user1_domain, followed=self.user2_domain)
+
+        # Authenticate as user1
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token1.key}")
+
+    def test_get_global_feed(self):
+        """
+        Tests the default feed, which should return all posts.
+        """
+        res = self.client.get("/posts/feed/")
+        self.assertEqual(res.status_code, 200)
+
+        # Should contain all 3 posts
+        self.assertEqual(res.data['count'], 3)
+        
+        # Check content of posts to be sure
+        contents = {item['content'] for item in res.data['results']}
+        self.assertIn("My own post", contents)
+        self.assertIn("A post from someone I follow", contents)
+        self.assertIn("A post from a stranger", contents)
+
+    def test_get_following_feed(self):
+        """
+        Tests the filtered feed, which should only return posts from followed users.
+        """
+        res = self.client.get("/posts/feed/?filter=following")
+        self.assertEqual(res.status_code, 200)
+
+        # Should only contain 1 post (from user2)
+        self.assertEqual(res.data['count'], 1)
+        self.assertEqual(res.data['results'][0]['content'], "A post from someone I follow")
+        self.assertEqual(res.data['results'][0]['author'], self.user2_domain.id)

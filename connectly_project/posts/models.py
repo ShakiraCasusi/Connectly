@@ -44,3 +44,18 @@ class Like(models.Model):
 
     def __str__(self):
         return f"Like by {self.user.username} on Post {self.post.id}"
+
+
+class Follow(models.Model):
+    """
+    Represents a user following another user.
+    """
+    # The user doing the following
+    follower = models.ForeignKey(User, related_name='following', on_delete=models.CASCADE)
+    # The user being followed
+    followed = models.ForeignKey(User, related_name='followers', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # A user can't follow the same person twice
+        unique_together = ('follower', 'followed')

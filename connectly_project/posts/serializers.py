@@ -77,8 +77,7 @@ class PostSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'author', 'created_at', 'comments', 'like_count', 'comment_count']
 
     def get_comments(self, obj):
-        comments = obj.comments.order_by('-created_at')
-        return CommentSerializer(comments, many=True).data
+        return CommentSerializer(obj.comments.all(), many=True).data
 
     def get_like_count(self, obj):
         # related_name='likes' on Like.post

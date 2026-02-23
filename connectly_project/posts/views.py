@@ -12,7 +12,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
-from .models import User, Post, Comment, Like
+from django.db.models import Prefetch
+from .models import User, Post, Comment, Like, Follow
 from .serializers import (
     UserSerializer,
     UserCreateSerializer,
@@ -388,3 +389,54 @@ class GoogleLogin(APIView):
         except ValueError as e:
             logger.warning(f"Google auth failed: {str(e)}")
             return _error(f"Token verification failed: {str(e)}", status.HTTP_400_BAD_REQUEST)
+
+
+# News Feed View
+
+class FeedView(APIView):
+    """
+    Provides a personalized news feed for the authenticated user.
+    Supports filtering for posts from followed users.
+    """
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        
+        domain_user = _get_domain_user(request)
+        if not domain_user:
+            return _error("User profile not found", status.HTTP_400_BAD_REQUEST)
+
+        # Check for the '?filter=following' query param
+        feed_filter = request.query_params.get('filter')
+
+        if feed_filter == 'following':
+            
+            logger.info(f"Fetching 'following' feed for user: {domain_user.username}")
+            followed_users = domain_user.following.values_list('followed_id', flat=True)
+            qs = Post.objects.filter(author_id__in=followed_users)
+        else:
+            
+            logger.info(f"Fetching global feed for user: {domain_user.username}")
+            qs = Post.objects.all()
+
+        # Optimize and order queryset
+        optimized_qs = qs.select_related('author').prefetch_related(
+            'likes',
+            Prefetch('comments', queryset=Comment.objects.order_by('-created_at'))
+        ).order_by('-created_at')
+
+        # Paginate the results
+        paginator = PageNumberPagination()
+        paginator.page_size = 10
+        paginator.page_size_query_param = 'page_size'
+        paginator.max_page_size = 100
+        page = paginator.paginate_queryset(optimized_qs, request, view=self)
+
+        if page is not None:
+            serializer = PostSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        # Return the full list
+        serializer = PostSerializer(optimized_qs, many=True)
+        return Response(serializer.data)
