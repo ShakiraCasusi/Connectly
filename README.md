@@ -1,4 +1,4 @@
-# Connectly Backend – Social API Platform
+# Connectly API 
 
 Connectly is a Django REST Framework backend powering a social media application. It provides core functionality for user management, posts, comments, likes, and personalized news feeds with token-based authentication.
 
