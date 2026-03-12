@@ -2,9 +2,15 @@ from django.db import models
 
 
 class User(models.Model):
+    ROLE_CHOICES = (
+        ("admin", "Admin"),
+        ("user", "User"),
+        ("guest", "Guest"),
+    )
     username = models.CharField(max_length=100, unique=True)
     email = models.EmailField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="user")
 
 
     def __str__(self):
@@ -12,9 +18,14 @@ class User(models.Model):
 
 
 class Post(models.Model):
+    PRIVACY_CHOICES = (
+        ("public", "Public"),
+        ("private", "Private"),
+    )
     content = models.TextField()
     author = models.ForeignKey(User, related_name='posts', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    privacy = models.CharField(max_length=10, choices=PRIVACY_CHOICES, default="public")
 
 
     def __str__(self):

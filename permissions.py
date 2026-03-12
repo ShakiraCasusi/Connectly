@@ -1,6 +1,6 @@
-from rest_framework.permissions import BasePermission
-
+from rest_framework import permissions
 from .models import User as DomainUser
+
 
 def _get_domain_user_from_auth(auth_user):
     """Helper function to get the domain user from the request.user (AuthUser)."""
@@ -11,16 +11,20 @@ def _get_domain_user_from_auth(auth_user):
     except DomainUser.DoesNotExist:
         return None
 
-# Only the post author can edit or delete their own post
-class IsPostAuthor(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        domain_user = _get_domain_user_from_auth(request.user)
-        if not domain_user:
-             return False
-        return obj.author == domain_user
 
-# Only admins can access
-class IsAdmin(BasePermission):
+class IsAdmin(permissions.BasePermission):
+    """
+    Custom permission to only allow users with 'admin' role.
+    """
+
     def has_permission(self, request, view):
         domain_user = _get_domain_user_from_auth(request.user)
         return domain_user and domain_user.role == "admin"
+
+
+class IsPostAuthor(permissions.BasePermission):
+    """Object-level permission to only allow owners of a post to edit it."""
+
+    def has_object_permission(self, request, view, obj):
+        domain_user = _get_domain_user_from_auth(request.user)
+        return obj.author == domain_user
