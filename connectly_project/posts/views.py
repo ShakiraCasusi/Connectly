@@ -26,6 +26,7 @@ from .serializers import (
 from .permissions import IsPostAuthor, IsAdmin
 from singletons.logger_singleton import LoggerSingleton
 from factories.post_factory import PostFactory
+from django.core.cache import cache
 
 logger = LoggerSingleton().get_logger()
 
@@ -59,6 +60,13 @@ def _get_domain_user(request):
     return domain_user
 
 
+def paginate_queryset(queryset, request, view):
+    paginator = PageNumberPagination()
+    paginator.page_size = 10
+    paginator.page_size_query_param = 'page_size'
+    paginator.max_page_size = 100
+    page = paginator.paginate_queryset(queryset, request, view=view)
+    return page, paginator
 
 # Test/Debug Endpoint
 
@@ -410,6 +418,14 @@ class FeedView(APIView):
         # Check for the '?filter=following' query param
         feed_filter = request.query_params.get('filter')
 
+        # Cache check
+        cache_key = f"feed_{domain_user.id}_{feed_filter or 'all'}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Returning cached feed for user: {domain_user.username}, filter: {feed_filter}")
+            return Response(cached_data)
+
+
         if feed_filter == 'following':
             
             logger.info(f"Fetching 'following' feed for user: {domain_user.username}")
@@ -426,16 +442,17 @@ class FeedView(APIView):
             Prefetch('comments', queryset=Comment.objects.order_by('-created_at'))
         ).order_by('-created_at')
 
-        # Paginate the results
-        paginator = PageNumberPagination()
-        paginator.page_size = 10
-        paginator.page_size_query_param = 'page_size'
-        paginator.max_page_size = 100
-        page = paginator.paginate_queryset(optimized_qs, request, view=self)
-
+        
+        page, paginator = paginate_queryset(optimized_qs, request, view=self)
         if page is not None:
             serializer = PostSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            response_data = paginator.get_paginated_response(serializer.data)
+
+            # Cache the paginated response for 60 seconds
+            cache.set(cache_key, response_data, 60)
+            logger.info(f"Cached feed for user: {domain_user.username}, filter: {feed_filter} for 60 seconds")
+
+            return Response(self.response_data)
 
         # Return the full list
         serializer = PostSerializer(optimized_qs, many=True)
