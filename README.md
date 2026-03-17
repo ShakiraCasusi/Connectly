@@ -1,68 +1,99 @@
-# Connectly API 
+# Connectly API
 
-Connectly is a Django REST Framework backend powering a social media application. It provides core functionality for user management, posts, comments, likes, and personalized news feeds with token-based authentication.
+Connectly is a Django REST Framework backend for a social media platform. It supports account registration, token-based authentication, post publishing with privacy controls, comments, likes, personalized feeds, and Google OAuth login.
 
-**Milestone 2 Focus:** Post likes, post-scoped comments, Google OAuth integration, pagination, and news feed retrieval.
+**Current milestone scope:** Token-auth-compatible user onboarding, role-aware permissions, post privacy filtering, feed filtering (`global` vs `following`), and Google OAuth token exchange.
 
 ---
 
 ## Core Features
 
-- **Likes System** – Per-post, per-user likes with duplicate prevention
-- **Comments System** – Threaded comments on posts with newest-first ordering
-- **Google OAuth Login** – Token exchange for third-party authentication
-- **News Feed** – Personalized and global feed endpoints with pagination support
-- **Pagination** – Comment and feed queries support configurable page sizes
+- **Dual user provisioning** – Registration creates both a Django auth user (for DRF token auth) and a domain profile (`posts.User`)
+- **Token Authentication** – DRF `TokenAuthentication` across protected endpoints
+- **Posts with Privacy Controls** – Public/private posts with privacy-aware retrieval rules
+- **Role-Aware Authorization** – Author-only post edits and admin-only post/comment deletion operations
+- **Likes System** – Per-user, per-post likes with duplicate-like prevention
+- **Comments System** – Global and post-scoped comments with validation and pagination
+- **Feed Retrieval** – Global feed and `following`-filtered feed variants with pagination
+- **Google OAuth Login** – Accepts Google `id_token`, verifies it, and returns API token
 
 ---
 
 ## Architecture
 
-The system follows REST principles with clear separation of concerns:
+The system follows REST conventions with modular app boundaries and explicit auth/permission layers.
 
-**Models:** User, Post, Comment, Like entities in SQLite database
+**Models:**
+- `posts.User` (domain profile with role)
+- `posts.Post` (content + privacy)
+- `posts.Comment`
+- `posts.Like` (unique user/post pair)
+- `posts.Follow` (follower/followed relationship)
 
-**Serializers:** Input validation and API response formatting using Django REST Framework
+**Serializers:**
+- Dedicated serializers for user registration/listing, post payloads, comments, and likes
+- Input validation for non-empty comment content and registration constraints
 
-**Views:** Authentication-protected endpoints with custom permission rules (IsPostAuthor for edit/delete)
+**Views:**
+- APIViews for users, posts, comments, likes, post-scoped comments, feed retrieval, and OAuth login
+- Method-specific permission handling (`GET`/`PUT`/`DELETE`) on post detail operations
 
-**Authentication:** Token-based authentication maintained by TokenAuthentication middleware
+**Authentication:**
+- DRF `TokenAuthentication` default
+- Public registration and Google login endpoints
 
-**Design Patterns:**
-- Factory Pattern: PostFactory enforces post creation logic
-- Singleton Pattern: LoggerSingleton provides centralized logging
+**Authorization Rules:**
+- `IsAuthenticated` baseline for protected routes
+- `IsPostAuthor` for post updates
+- `IsAdmin` for admin-only destructive actions
+
+**Design Patterns in Codebase:**
+- Factory Pattern: `PostFactory` centralizes post object construction
+- Singleton Pattern: `LoggerSingleton` and `ConfigManager` utilities
 
 ---
 
 ## Included Diagrams
 
-The project documentation includes:
-- Entity-Relationship Diagram (User, Post, Comment, Like relationships)
-- API Flow Diagram (request/response sequences for CRUD operations)
-- Google OAuth Flow Diagram (authentication handshake and token exchange)
+The documentation includes:
+- Entity-Relationship Diagram (User, Follow, Post, Comment, Like)
+- CRUD + Permission Flow Diagram (token auth + per-method permissions)
+- System Architecture Diagram (routing, auth, permissions, serializer/model layers)
+- API Request/Response Flow (validation and error branches)
+- Google OAuth Flow Diagram (token verification and user/token provisioning)
 
 ---
 
 ## API Endpoints
 
+Base prefix: `/posts/`
+
+**Public / Authentication**
+- `POST /posts/users/` – register user (creates auth + domain user)
+- `POST /posts/token-auth/` – obtain DRF token (username/password)
+- `POST /posts/auth/google/` – exchange Google `id_token` for API token
+
 **Users**
-- GET /posts/users/
-- POST /posts/users/
+- `GET /posts/users/` – list domain users (auth required)
 
 **Posts**
-- GET /posts/posts/
-- POST /posts/posts/
-- GET /posts/posts/{id}/
-- PUT /posts/posts/{id}/
-- DELETE /posts/posts/{id}/
+- `GET /posts/posts/` – list posts
+- `POST /posts/posts/` – create post
+- `GET /posts/posts/{id}/` – retrieve post (privacy-aware)
+- `PUT /posts/posts/{id}/` – update post (author-only)
+- `DELETE /posts/posts/{id}/` – delete post (admin-only)
 
-**Likes & Comments**
-- POST /posts/posts/{id}/like/
-- POST /posts/posts/{id}/comment/
-- GET /posts/posts/{id}/comments/
+**Comments / Likes**
+- `GET /posts/comments/` – list all comments
+- `POST /posts/comments/` – create global comment payload (`post` required)
+- `POST /posts/posts/{id}/like/` – like post
+- `POST /posts/posts/{id}/comment/` – add comment to post using `{ "content": "..." }`
+- `GET /posts/posts/{id}/comments/` – paginated post comments (newest-first)
 
-**Authentication**
-- POST /posts/token-auth/
+**Feed / Diagnostics**
+- `GET /posts/feed/` – paginated global feed
+- `GET /posts/feed/?filter=following` – feed from followed users only
+- `GET /posts/test-auth/` – token authentication debug endpoint
 
 ---
 
@@ -74,7 +105,9 @@ The project documentation includes:
 erDiagram
     USER ||--o{ POST : creates
     USER ||--o{ COMMENT : writes
-    USER ||--o{ LIKE : givers
+    USER ||--o{ LIKE : gives
+    USER ||--o{ FOLLOW : follower
+    USER ||--o{ FOLLOW : followed
     POST ||--o{ COMMENT : receives
     POST ||--o{ LIKE : receives
 
@@ -82,6 +115,7 @@ erDiagram
         int id PK
         string username UK
         string email UK
+        string role "admin|user|guest"
         datetime created_at
     }
 
@@ -89,6 +123,7 @@ erDiagram
         int id PK
         text content
         int author_id FK
+        string privacy "public|private"
         datetime created_at
     }
 
@@ -107,62 +142,89 @@ erDiagram
         datetime created_at
         string unique_constraint "user_id, post_id"
     }
+
+    FOLLOW {
+        int id PK
+        int follower_id FK
+        int followed_id FK
+        datetime created_at
+        string unique_together "follower_id, followed_id"
+    }
 ```
 
 ---
 
-### 2. CRUD Operations Flow
+### 2. CRUD + Permission Operations Flow
 
 ```mermaid
 sequenceDiagram
     participant Client as Client/Postman
-    participant View as Django View
+    participant View as Django APIView
+    participant Auth as TokenAuthentication
+    participant Perm as Permission Class
     participant Serializer as Serializer
-    participant Model as Database Model
-    participant DB as SQLite DB
+    participant Model as Model Layer
+    participant DB as SQLite
 
     rect rgb(200, 220, 255)
     Note over Client,DB: CREATE - POST /posts/posts/
-    Client->>View: POST with post data
-    View->>Serializer: Validate request
-    Serializer->>View: Return validated data
-    View->>Model: Create new Post instance
-    Model->>DB: INSERT new record
-    DB-->>Model: Confirm creation
-    Model-->>View: Return created instance
-    View-->>Client: 201 Created with post object
+    Client->>View: POST + Token + payload
+    View->>Auth: Validate token
+    Auth-->>View: Authenticated user
+    View->>Serializer: Validate payload
+    Serializer-->>View: Validated data
+    View->>Model: Build post via PostFactory + assign author/privacy
+    Model->>DB: INSERT post
+    DB-->>Model: Created row
+    View-->>Client: 201 Created
     end
 
     rect rgb(200, 255, 220)
-    Note over Client,DB: READ - GET /posts/posts/
-    Client->>View: GET request
-    View->>Model: Query all posts
-    Model->>DB: SELECT * FROM posts
-    DB-->>Model: Return records
-    Model-->>View: Return post list
-    View-->>Client: 200 OK with posts array
+    Note over Client,DB: READ - GET /posts/posts/{id}/
+    Client->>View: GET + Token
+    View->>Auth: Validate token
+    Auth-->>View: Authenticated user
+    View->>Perm: Apply privacy rule (private visible to owner only)
+    alt Not allowed
+        Perm-->>Client: 403 Forbidden
+    else Allowed
+        View->>Model: Fetch post
+        Model->>DB: SELECT by id
+        DB-->>Model: Row
+        View-->>Client: 200 OK
+    end
     end
 
     rect rgb(255, 240, 200)
     Note over Client,DB: UPDATE - PUT /posts/posts/{id}/
-    Client->>View: PUT with updated data
-    View->>Serializer: Validate request
-    Serializer->>View: Return validated data
-    View->>Model: Update Post instance
-    Model->>DB: UPDATE record
-    DB-->>Model: Confirm update
-    Model-->>View: Return updated instance
-    View-->>Client: 200 OK with updated object
+    Client->>View: PUT + Token + payload
+    View->>Auth: Validate token
+    Auth-->>View: Authenticated user
+    View->>Perm: IsPostAuthor?
+    alt Not author
+        Perm-->>Client: 403 Forbidden
+    else Author
+        View->>Serializer: Validate updates
+        Serializer-->>View: Validated data
+        View->>DB: UPDATE post
+        DB-->>View: Updated row
+        View-->>Client: 200 OK
+    end
     end
 
     rect rgb(255, 200, 200)
     Note over Client,DB: DELETE - DELETE /posts/posts/{id}/
-    Client->>View: DELETE request
-    View->>Model: Delete Post instance
-    Model->>DB: DELETE FROM posts WHERE id=?
-    DB-->>Model: Confirm deletion
-    Model-->>View: Deletion confirmed
-    View-->>Client: 204 No Content
+    Client->>View: DELETE + Token
+    View->>Auth: Validate token
+    Auth-->>View: Authenticated user
+    View->>Perm: IsAdmin?
+    alt Not admin
+        Perm-->>Client: 403 Forbidden
+    else Admin
+        View->>DB: DELETE row
+        DB-->>View: Deletion confirmed
+        View-->>Client: 204 No Content
+    end
     end
 ```
 
@@ -177,13 +239,13 @@ graph TB
     end
 
     subgraph API["API Layer"]
-        Router["URL Router<br/>connectly_project/urls.py"]
+        Router["URL Router<br/>connectly_project/urls.py + posts/urls.py"]
         Views["Views<br/>posts/views.py"]
     end
 
     subgraph Auth["Authentication & Authorization"]
         TokenAuth["TokenAuthentication"]
-        Perms["Custom Permissions<br/>IsPostAuthor"]
+        Perms["Permissions<br/>IsAuthenticated / IsPostAuthor / IsAdmin"]
     end
 
     subgraph Processing["Data Processing"]
@@ -191,13 +253,18 @@ graph TB
         Factory["PostFactory<br/>factories/post_factory.py"]
     end
 
-    subgraph Models["Data Models"]
-        ModelLayer["User, Post, Comment, Like<br/>posts/models.py"]
+    subgraph Domain["Domain Model Layer"]
+        DomainModels["User, Post, Comment, Like, Follow<br/>posts/models.py"]
+    end
+
+    subgraph Identity["Identity Layer"]
+        DjangoAuth["django.contrib.auth User"]
+        TokenModel["rest_framework.authtoken.Token"]
     end
 
     subgraph Utils["Utilities"]
-        Logger["LoggerSingleton<br/>singletons/logger_singleton.py"]
-        Config["ConfigManager<br/>singletons/config_manager.py"]
+        Logger["LoggerSingleton"]
+        Config["ConfigManager"]
     end
 
     subgraph Storage["Storage"]
@@ -206,24 +273,20 @@ graph TB
 
     Postman -->|HTTP Request| Router
     Router -->|Route| Views
-    Views -->|Check Auth| TokenAuth
-    Views -->|Check Permission| Perms
-    Views -->|Validate Data| Serializers
-    Views -->|Create Posts| Factory
-    Factory -->|Interact| ModelLayer
-    Serializers -->|Interact| ModelLayer
-    ModelLayer -->|Query/Persist| DB
+    Views -->|Authenticate| TokenAuth
+    Views -->|Authorize| Perms
+    Views -->|Validate| Serializers
+    Views -->|Create Post Object| Factory
+    Serializers -->|Read/Write| DomainModels
+    Factory -->|Build unsaved Post| DomainModels
+    Views -->|Create/Login Users| DjangoAuth
+    Views -->|Issue API Tokens| TokenModel
+    DomainModels -->|Persist| DB
+    DjangoAuth -->|Persist| DB
+    TokenModel -->|Persist| DB
     Views -->|Log Events| Logger
     Logger -->|Read Config| Config
-    Views -->|Response| Postman
-
-    style Client fill:#e1f5ff
-    style API fill:#f3e5f5
-    style Auth fill:#fff3e0
-    style Processing fill:#e8f5e9
-    style Models fill:#fce4ec
-    style Utils fill:#f1f8e9
-    style Storage fill:#ede7f6
+    Views -->|HTTP Response| Postman
 ```
 
 ---
@@ -236,37 +299,37 @@ sequenceDiagram
     participant Endpoint as API Endpoint
     participant Auth as Authentication
     participant Perms as Permissions
-    participant Handler as Request Handler
     participant Serializer as Serializer
-    participant Model as Model
+    participant Model as Model/Service
     participant DB as Database
 
-    Client->>Endpoint: HTTP Request + Token
-    Note over Endpoint: Route to view method
+    Client->>Endpoint: HTTP Request (+ Token if protected)
+    Endpoint->>Auth: Validate token/session context
 
-    Endpoint->>Auth: Validate Token
-    alt Token Invalid
+    alt Auth failed
         Auth-->>Client: 401 Unauthorized
-    else Token Valid
-        Auth->>Endpoint: User object
-        Endpoint->>Perms: Check Permissions (IsAuthenticated, IsPostAuthor)
-        
-        alt Permission Denied
+    else Auth success
+        Endpoint->>Perms: Check endpoint/method permissions
+
+        alt Permission denied
             Perms-->>Client: 403 Forbidden
-        else Permission Granted
-            Perms->>Handler: Proceed to handler
-            Handler->>Serializer: Validate input data
-            
-            alt Validation Fails
-                Serializer-->>Client: 400 Bad Request {error}
-            else Validation Passes
-                Serializer->>Handler: Validated data
-                Handler->>Model: Process business logic
+        else Permission granted
+            Endpoint->>Serializer: Validate request payload
+
+            alt Validation fails
+                Serializer-->>Client: 400 Bad Request
+            else Validation passes
+                Endpoint->>Model: Execute business logic
                 Model->>DB: Query/Insert/Update/Delete
-                DB-->>Model: Result
-                Model->>Handler: Result object
-                Handler->>Serializer: Prepare response
-                Serializer-->>Client: 200/201/204 with data
+
+                alt Resource missing
+                    DB-->>Endpoint: Not found
+                    Endpoint-->>Client: 404 Not Found
+                else Success
+                    DB-->>Model: Result
+                    Model-->>Endpoint: Domain object/data
+                    Endpoint-->>Client: 200/201/204 Success Response
+                end
             end
         end
     end
@@ -281,36 +344,34 @@ sequenceDiagram
     participant User as User
     participant Client as Frontend Client
     participant API as Connectly API
-    participant Google as Google OAuth Server
-    participant DB as Database
+    participant Google as Google OAuth
+    participant AuthDB as Django Auth User
+    participant DomainDB as posts.User
+    participant TokenDB as DRF Token
 
     User->>Client: Click "Login with Google"
-    Client->>Google: Redirect to Google login
-    Google->>User: Show consent screen
-    User->>Google: Approve permissions
-    Google-->>Client: Authorization code + redirect
-    Client->>API: POST /posts/oauth/google-token/<br/>{ "code": "...", "id_token": "..." }
-    
-    API->>Google: Verify ID token signature
-    alt Token Invalid
-        Google-->>API: Invalid signature
-        API-->>Client: 401 Unauthorized
-    else Token Valid
-        Google-->>API: Token claims (email, name, sub)
-        API->>DB: Check if user exists by email
-        
-        alt User Exists
-            DB-->>API: Return existing user
-            API->>API: Generate/retrieve token
-        else New User
-            API->>DB: Create new user with email
-            DB-->>API: Return new user
-            API->>API: Generate token
-        end
-        
-        API-->>Client: 200 OK { "token": "...", "user": {...} }
-        Client->>Client: Store token in local storage
-        Client->>API: All future requests with Authorization: Token ...
+    Client->>Google: Google Sign-In flow
+    Google-->>Client: id_token
+    Client->>API: POST /posts/auth/google/ { "id_token": "..." }
+
+    API->>Google: verify_oauth2_token(id_token, GOOGLE_CLIENT_ID)
+    alt Invalid token
+        Google-->>API: Verification error
+        API-->>Client: 400 Token verification failed
+    else Valid token
+        Google-->>API: Verified claims (email, profile)
+        API->>AuthDB: Get or create auth user by email
+        AuthDB-->>API: Auth user instance
+
+        API->>DomainDB: Get or create domain user (username/email)
+        DomainDB-->>API: Domain profile
+
+        API->>TokenDB: Get or create DRF token for auth user
+        TokenDB-->>API: API token
+
+        API-->>Client: 200 {token, user_id, username, email}
+        Client->>Client: Store token
+        Client->>API: Use Authorization: Token <token> on protected calls
     end
 ```
 
@@ -318,78 +379,81 @@ sequenceDiagram
 
 ## AI Disclosure
 
-This project utilized AI for:
-- Troubleshooting and debugging guidance
-- Architecture and design pattern clarification
-- Documentation review and validation
-
+This project may use AI assistance for:
+- troubleshooting and debugging support
+- architecture/design clarification
+- documentation drafting and refinement
 
 ---
 
 ## Development Tools
 
-- **VS Code** – Primary development environment
-- **Postman** - API test environment
-- **Prettier** – Code formatting (Built-in VSC Extension in device)
-- **Better Comments** – Enhanced code annotation and documentation (Built-in VSC Extension in device)
-- **Mermaid Extension** - Enhanced diagrams translated into mermaid code
+- **Python + Django** – Core backend framework
+- **Django REST Framework** – API serialization, auth, response handling
+- **SQLite** – Default local development database
+- **Postman** – Manual API endpoint verification
+- **Mermaid** – Architecture and flow documentation diagrams
 
 ---
 
 ## Testing Summary
 
-- **Postman Collection** – Comprehensive API testing with manual verification of all endpoints
-- **OAuth Verification** – Tested Google token exchange and user profile retrieval
-- **Pagination Validation** – Confirmed page size, count, and navigation parameters work correctly
-- **Permission Testing** – Verified author-only access control and 403 error handling
+- **Automated API tests (`posts/tests.py`)**
+  - Likes and post-scoped comments behavior
+  - Google OAuth endpoint logic (mocked Google verification)
+  - Feed behavior for global vs `following` filter
+- **Permission coverage**
+  - Author-only and admin-only guards tested via API behavior
+- **Pagination checks**
+  - Comment and feed endpoints validate paginated responses
 
 ---
 
 ## Setup Instructions
 
-**Clone the repository:**
+**1) Clone the repository:**
 
 ```bash
 git clone <repository-url>
-cd connectly_project
+cd Connectly/connectly_project
 ```
 
-**Create virtual environment:**
+**2) Create and activate virtual environment:**
 
-**Windows:**
+**Windows**
 
 ```bash
-python -m venv env
-env\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 ```
 
-**Mac or Linux:**
+**macOS / Linux**
 
 ```bash
-python3 -m venv env
-source env/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-**Install dependencies:**
+**3) Install dependencies:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**Apply migrations:**
+**4) Run migrations:**
 
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-**Run development server:**
+**5) Start development server:**
 
 ```bash
 python manage.py runserver
 ```
 
-**Server runs at:**
+**Default server URL:**
 
 ```text
 http://127.0.0.1:8000/
@@ -399,10 +463,9 @@ http://127.0.0.1:8000/
 
 ## Contributors
 
-| Name                  | Role        |
-| --------------------- | ----------- |
-| Camille Rose Umali    | Contributor |
-| Shakira Angela Casusi | Contributor/Documenter/Tester |
+| Name                  | Role                          |
+| --------------------- | ----------------------------- |
+| Camille Rose Umali    | Contributor                   |
+| Shakira Angela Casusi | Contributor / Documenter / QA |
 
-Roles inferred from commit history in repository.
-
+Roles inferred from project history and documentation context.
