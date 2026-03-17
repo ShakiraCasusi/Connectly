@@ -11,8 +11,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.pagination import PageNumberPagination
-from django.shortcuts import get_object_or_404
-from django.db.models import Prefetch
+from django.shortcuts import get_object_or_404, redirect
+from django.db.models import Prefetch, Q
 from .models import User, Post, Comment, Like, Follow
 from .serializers import (
     UserSerializer,
@@ -23,7 +23,7 @@ from .serializers import (
     PostCommentSerializer,
     LikeSerializer,
 )
-from .permissions import IsPostAuthor, IsAdmin
+from .permissions import IsPostAuthor, IsAdmin, _get_domain_user_from_auth
 from singletons.logger_singleton import LoggerSingleton
 from factories.post_factory import PostFactory
 
@@ -175,6 +175,7 @@ class PostListCreate(APIView):
                 return _error("User profile not found", status.HTTP_400_BAD_REQUEST)
 
             post.author = domain_user
+            post.privacy = data.get("privacy", "public")
             post.save()
 
             logger.info("Post created successfully via factory.")
@@ -191,21 +192,37 @@ class PostListCreate(APIView):
 
 class PostDetail(APIView):
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated, IsPostAuthor]
+
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        - GET: Any authenticated user (logic in view handles privacy).
+        - PUT: Only the post author.
+        - DELETE: Only admin users.
+        """
+        if self.request.method == 'PUT':
+            return [IsAuthenticated(), IsPostAuthor()]
+        if self.request.method == 'DELETE':
+            return [IsAuthenticated(), IsAdmin()]
+        return [IsAuthenticated()]
 
     def get(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
-        self.check_object_permissions(request, post)
+        domain_user = _get_domain_user(request)
+
+        # Privacy check
+        is_owner = post.author == domain_user
+        if post.privacy == 'private' and not is_owner:
+            logger.warning(f"User {domain_user.username if domain_user else 'anonymous'} denied access to private post {pk}")
+            return _error("You do not have permission to view this post.", status.HTTP_403_FORBIDDEN)
 
         logger.info(f"Post {pk} viewed by: {request.user.username}")
-
         serializer = PostSerializer(post)
         return Response(serializer.data)
 
     def put(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
         self.check_object_permissions(request, post)
-
         logger.info(f"Post {pk} updated attempted by: {request.user.username}")
 
         serializer = PostSerializer(post, data=request.data, partial=True)
@@ -219,11 +236,21 @@ class PostDetail(APIView):
 
     def delete(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
-        self.check_object_permissions(request, post)
-
+        # Permission check is handled by get_permissions
         logger.info(f"Post {pk} deleted by: {request.user.username}")
         post.delete()
 
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CommentDetail(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdmin]  # Only admins can delete comments
+
+    def delete(self, request, pk):
+        comment = get_object_or_404(Comment, pk=pk)
+        logger.info(f"Comment {pk} deleted by admin: {request.user.username}")
+        comment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -407,18 +434,19 @@ class FeedView(APIView):
         if not domain_user:
             return _error("User profile not found", status.HTTP_400_BAD_REQUEST)
 
-        # Check for the '?filter=following' query param
         feed_filter = request.query_params.get('filter')
 
         if feed_filter == 'following':
-            
             logger.info(f"Fetching 'following' feed for user: {domain_user.username}")
             followed_users = domain_user.following.values_list('followed_id', flat=True)
             qs = Post.objects.filter(author_id__in=followed_users)
         else:
-            
             logger.info(f"Fetching global feed for user: {domain_user.username}")
             qs = Post.objects.all()
+
+        # Add privacy filtering
+        # A post is visible if it's public OR if it's private and the user is the author.
+        qs = qs.filter(Q(privacy='public') | (Q(privacy='private') & Q(author=domain_user)))
 
         # Optimize and order queryset
         optimized_qs = qs.select_related('author').prefetch_related(
