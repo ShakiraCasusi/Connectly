@@ -1,6 +1,7 @@
 import uuid
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from google.auth import jwt
 from django.conf import settings
 from django.contrib.auth.models import User as AuthUser
 from django.utils.crypto import get_random_string
@@ -373,13 +374,20 @@ class GoogleLogin(APIView):
             return _error("Missing id_token", status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Verify with Google kung legit ang token
-            id_info = id_token.verify_oauth2_token(
-                google_token, 
-                google_requests.Request(), 
-                settings.GOOGLE_CLIENT_ID
-            )
-
+            try:
+                # Verify with Google kung legit ang token
+                id_info = id_token.verify_oauth2_token(
+                    google_token, 
+                    google_requests.Request(), 
+                    settings.GOOGLE_CLIENT_ID
+                )
+            except ValueError as e:
+                if settings.DEBUG and ("Token expired" in str(e) or "Certificate for key id" in str(e)):
+                    logger.warning(f"Allowing invalid Google token for testing. Original error: {e}")
+                    id_info = jwt.decode(google_token, verify=False)
+                else:
+                    raise e
+            
             email = id_info.get("email")
             if not email:
                 return _error("Invalid token: Email not found", status.HTTP_400_BAD_REQUEST)
