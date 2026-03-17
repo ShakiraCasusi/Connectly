@@ -1,6 +1,7 @@
 import uuid
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from django.core.cache import cache
 from django.conf import settings
 from django.contrib.auth.models import User as AuthUser
 from django.utils.crypto import get_random_string
@@ -428,20 +429,40 @@ class FeedView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        
+    def get(self, request):        
         domain_user = _get_domain_user(request)
         if not domain_user:
             return _error("User profile not found", status.HTTP_400_BAD_REQUEST)
 
-        feed_filter = request.query_params.get('filter')
+        feed_filter = request.query_params.get('filter', 'global')
+
+        # Ensure page/page_size are integers for cache key consistency.
+        try:
+            page_number = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+        except (ValueError, TypeError):
+            return _error("Invalid page or page_size parameter.", status.HTTP_404_NOT_FOUND)
+
+        # Define a cache key based on user, filter, and pagination
+        cache_key = f"feed:user_{domain_user.id}:filter_{feed_filter}:page_{page_number}:size_{page_size}"
+        
+        # Try to fetch the result from the cache
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            logger.info(f"Cache hit for feed: {cache_key}")
+            return Response(cached_data)
+
+        logger.info(f"Cache miss for feed: {cache_key}")
 
         if feed_filter == 'following':
             logger.info(f"Fetching 'following' feed for user: {domain_user.username}")
             followed_users = domain_user.following.values_list('followed_id', flat=True)
-            qs = Post.objects.filter(author_id__in=followed_users)
+            # Also include the user's own posts in their "following" feed
+            followed_and_own_ids = list(followed_users) + [domain_user.id]
+            qs = Post.objects.filter(author_id__in=followed_and_own_ids)
         else:
             logger.info(f"Fetching global feed for user: {domain_user.username}")
+            # The global feed should only contain public posts, or private posts of the user
             qs = Post.objects.all()
 
         # Add privacy filtering
@@ -463,8 +484,13 @@ class FeedView(APIView):
 
         if page is not None:
             serializer = PostSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
+            response = paginator.get_paginated_response(serializer.data)
+            # Cache the paginated response data for 5 minutes
+            cache.set(cache_key, response.data, timeout=300)
+            return response
 
         # Return the full list
         serializer = PostSerializer(optimized_qs, many=True)
+        # Cache the non-paginated response data as well
+        cache.set(cache_key, serializer.data, timeout=300)
         return Response(serializer.data)

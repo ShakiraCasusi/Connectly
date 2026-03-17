@@ -206,12 +206,15 @@ class FeedAPITests(APITestCase):
 
     def test_get_following_feed(self):
         """
-        Tests the filtered feed, which should only return posts from followed users.
+        Tests the filtered feed, which should return posts from followed users
+        and the user's own posts.
         """
         res = self.client.get("/posts/feed/?filter=following")
         self.assertEqual(res.status_code, 200)
 
-        # Should only contain 1 post (from user2)
-        self.assertEqual(res.data['count'], 1)
-        self.assertEqual(res.data['results'][0]['content'], "A post from someone I follow")
-        self.assertEqual(res.data['results'][0]['author'], self.user2_domain.id)
+        # Should contain 2 posts: one from user1 (self) and one from user2 (followed)
+        self.assertEqual(res.data['count'], 2)
+        contents = {item['content'] for item in res.data['results']}
+        self.assertIn("My own post", contents)
+        self.assertIn("A post from someone I follow", contents)
+        self.assertNotIn("A post from a stranger", contents)
